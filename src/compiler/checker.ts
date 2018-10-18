@@ -114,6 +114,7 @@ namespace ts {
                 location = getParseTreeNode(location);
                 return location ? getTypeOfSymbolAtLocation(symbol, location) : errorType;
             },
+            getTypeOfSymbol,
             getSymbolsOfParameterPropertyDeclaration: (parameterIn, parameterName) => {
                 const parameter = getParseTreeNode(parameterIn, isParameter);
                 if (parameter === undefined) return Debug.fail("Cannot get symbols of a synthetic parameter that cannot be resolved to a parse-tree node.");
@@ -370,6 +371,8 @@ namespace ts {
             },
 
             getLocalTypeParametersOfClassOrInterfaceOrTypeAlias,
+
+            isTypeIdenticalTo,
         };
 
         function getResolvedSignatureWorker(nodeIn: CallLikeExpression, candidatesOutArray: Signature[] | undefined, argumentCount: number | undefined, isForSignatureHelp: boolean): Signature | undefined {
@@ -5478,7 +5481,11 @@ namespace ts {
             if (symbol.flags & SymbolFlags.Alias) {
                 return getTypeOfAlias(symbol);
             }
-            return errorType;
+            if (symbol.flags & SymbolFlags.ObjectLiteral) {
+                const decl = symbol.valueDeclaration;
+                return isJsxAttributes(decl) ? checkJsxAttributes(decl) : checkObjectLiteral(cast(decl, isObjectLiteralExpression));
+            }
+            return getDeclaredTypeOfSymbol(symbol);
         }
 
         function isReferenceToType(type: Type, target: Type) {
@@ -17765,7 +17772,7 @@ namespace ts {
          * (See "checkApplicableSignatureForJsxOpeningLikeElement" for how the function is used)
          * @param node a JSXAttributes to be resolved of its type
          */
-        function checkJsxAttributes(node: JsxAttributes, checkMode: CheckMode | undefined) {
+        function checkJsxAttributes(node: JsxAttributes, checkMode?: CheckMode) {
             return createJsxAttributesTypeFromAttributesProperty(node.parent, checkMode);
         }
 
